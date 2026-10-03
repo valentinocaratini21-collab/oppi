@@ -338,6 +338,18 @@ textarea { resize: vertical; }
 .auth-logo { font-size: 44px; font-weight: 800; letter-spacing: -2px; color: var(--primary); text-align: center; margin-bottom: 8px; }
 .auth-wrap h1 { text-align: center; }
 
+/* --- selector de rol en el registro --- */
+.role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.role-card {
+  display: flex; gap: 10px; align-items: center; text-align: left;
+  background: var(--card); border: 2px solid var(--line); border-radius: 18px;
+  padding: 12px; cursor: pointer; font: inherit; color: inherit; width: 100%;
+  box-shadow: var(--shadow-sm);
+}
+.role-card.active { border-color: var(--primary); background: var(--primary-soft, #efedfb); }
+.role-ico { font-size: 26px; line-height: 1; }
+.role-card strong { font-size: 15px; }
+
 /* --- bottom nav --- */
 #bottomNav {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
