@@ -2172,6 +2172,17 @@ const API_URL_KEY = 'oppi_api_url';
 const API_DEFAULT_URL = 'http://localhost:3000';
 
 function apiBase() {
+  /* ?api= en la URL: permite cambiar el backend desde la query, lo guarda
+     en localStorage y tiene prioridad sobre window.OPPI_API_URL. */
+  try {
+    if (typeof window !== 'undefined' && window.location && window.location.search) {
+      const q = new URLSearchParams(window.location.search).get('api');
+      if (q && q.trim()) {
+        try { localStorage.setItem(API_URL_KEY, q.trim()); } catch (e) { /* sin localStorage */ }
+        return String(q.trim()).replace(/\/+$/, '');
+      }
+    }
+  } catch (e) { /* URL malformada o sin location: seguir con el resto */ }
   const w = (typeof window !== 'undefined' && window.OPPI_API_URL) ? window.OPPI_API_URL : null;
   let ls = null;
   try { ls = (typeof localStorage !== 'undefined') ? localStorage.getItem(API_URL_KEY) : null; }

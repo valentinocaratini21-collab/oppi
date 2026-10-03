@@ -82,24 +82,61 @@ Para activar Bancard/FCM/APNs reales, agregalas a mano en **Environment**
 ## Opción B — Railway (resumen)
 
 `railway.json` ya trae builder Dockerfile, `startCommand: node src/server.js`
-y health check en `/api/health`.
+y health check en `/api/health`. **Ojo monorepo:** el Root Directory se
+setea a mano en el dashboard (el `railway.json` no puede declararlo).
 
-1. En [railway.app](https://railway.app) → **New Project** → **Deploy from
-   GitHub repo** → elegí el repo.
-2. Agregá **Postgres**: New → Database → PostgreSQL. En el servicio de la API,
-   agregá la variable `DATABASE_URL` referenciando la base
-   (`${{Postgres.DATABASE_URL}}`).
-3. En **Variables** del servicio API, pegá como mínimo:
-   `JWT_SECRET` y `CRON_SECRET` (generadas como en el paso 4 de Render).
-   `PORT` lo setea Railway solo; no hace falta.
-4. Si usás SQLite en vez de Postgres (no recomendado en producción),
-   agregá un **Volume** montado en `/app/data`.
-5. Deploy → verificá `https://<tu-app>.up.railway.app/api/health`.
-6. Seed una vez: Railway CLI (`railway run npm run seed`) o la pestaña
-   de terminal del servicio.
-7. Crons: igual que en Render (servicio Cron aparte o scheduler externo)
-   pegando a `/api/notifications/generate-reminders` y `/send-due` con el
-   header `x-cron-secret`.
+1. En [railway.app](https://railway.app) → **New Project** →
+   **Deploy from GitHub repo** → elegí `valentinocaratini21-collab/oppi`.
+2. **Root Directory (CRÍTICO):** en el servicio recién creado → pestaña
+   **Settings** → sección **Source** → **Root Directory** → escribí
+   `oppi-api` → **Save**. Railway va a redeployar usando esa carpeta como
+   base (ahí están el `Dockerfile`, el `package.json` y el `railway.json`).
+3. Agregá **Postgres** en el mismo proyecto: botón **New** (arriba a la
+   derecha del canvas) → **Database** → **PostgreSQL**.
+4. En el servicio de la API → pestaña **Variables** → **New Variable**:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (referencia a la base;
+     si tu servicio de Postgres se llama distinto, usá ese nombre).
+   - `JWT_SECRET` → generá uno así y pegalo:
+     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - `CRON_SECRET` → generá otro distinto con el mismo comando. Guardalo:
+     lo vas a necesitar para los crons (paso 8).
+   - `ADMIN_EMAIL` → tu email (la cuenta que te registres con ese email
+     nace admin; setealo ANTES de correr el seed o registrarte).
+   - `CANCELLATION_PILOT_MODE` = `true` (es el default, pero que quede
+     explícito).
+   - `NODE_ENV` = `production` (Railway a veces lo pone solo; si no está,
+     agregalo).
+   - `PORT` lo inyecta Railway solo: **no lo setees a mano**.
+5. Generá el dominio público: en el servicio → **Settings** →
+   **Networking** → **Generate Domain**. Te da algo como
+   `https://oppi-api-production-xxxx.up.railway.app`.
+6. Deploy → esperá ~2–3 min a que diga **Success** y el health check pase.
+   Verificá en el navegador: `https://<tu-dominio>/api/health` → tiene que
+   responder `{"ok":true,"service":"oppi-api","version":"1.0.0"}`.
+7. **Seed una vez** (crea usuarios de prueba y datos demo; es idempotente).
+   Railway no tiene terminal web en el servicio, así que se hace con la CLI
+   desde tu compu, parado en la carpeta `oppi-api` del repo:
+   ```bash
+   npm i -g @railway/cli
+   railway login          # abre el navegador, aceptá
+   cd oppi-api            # la carpeta de la API dentro del repo
+   railway link           # elegí el proyecto y el servicio de la API
+   railway run npm run seed
+   ```
+   Tiene que terminar con `Seed OK en (postgres)`. Usuarios de prueba
+   (password `oppi123`): `ana@ejemplo.com.py`, `charly@ejemplo.com.py`,
+   `camila@ejemplo.com.py`, `rosa@bellavista.com.py`.
+8. **Crons de notificaciones** (`/generate-reminders` y `/send-due` cada 5
+   min, con el header `x-cron-secret: <CRON_SECRET>`). Railway no trae cron
+   nativo: lo más simple es [cron-job.org](https://cron-job.org) (gratis):
+   creá dos jobs `POST` a
+   `https://<tu-dominio>/api/notifications/generate-reminders` y
+   `https://<tu-dominio>/api/notifications/send-due`, cada 5 minutos, con
+   el header `x-cron-secret` = tu `CRON_SECRET`.
+9. **Fotos**: con Postgres, los uploads siguen en disco local
+   (`STORAGE_DRIVER=local`, `/app/data/uploads`). En Railway el disco se
+   pierde en cada redeploy: para producción real, migrá a S3/R2
+   (`STORAGE_DRIVER=s3` + credenciales en `.env.example`).
 
 ## Antes de compartir con humanos (checklist)
 
