@@ -1280,13 +1280,15 @@ const MockAdapter = {
     this._save();
     return { ok: true, user: deepClone(s.user) };
   },
-  register({ name, email, password, terms_accepted }) {
+  register({ name, email, password, role, terms_accepted }) {
     if (!name || !name.trim()) return { ok: false, error: 'Ingresá tu nombre.' };
     if (!email || !email.includes('@')) return { ok: false, error: 'Ingresá un email válido.' };
     if (!password || password.length < 4) return { ok: false, error: 'La contraseña tiene que tener al menos 4 caracteres.' };
     if (terms_accepted !== true) return { ok: false, error: 'Tenés que aceptar los Términos y la Política de privacidad para crear tu cuenta.' };
+    const validRoles = ['client', 'pro', 'handyman', 'business'];
+    const finalRole = validRoles.includes(role) ? role : 'client';
     const s = this._load();
-    s.user = { name: name.trim(), email, role: 'client', createdAt: new Date().toISOString() };
+    s.user = { name: name.trim(), email, role: finalRole, createdAt: new Date().toISOString() };
     this._save();
     return { ok: true, user: deepClone(s.user) };
   },
@@ -1303,8 +1305,11 @@ const MockAdapter = {
   myRoles() {
     const s = this._load();
     const roles = ['client'];
-    if ((s.jobs || []).some(j => j.handymanId === 'me' && j.status !== 'rejected')) roles.push('handyman');
-    if (s.business) roles.push('business');
+    const userRole = s.user && s.user.role;
+    if (userRole === 'pro' || userRole === 'handyman') roles.push('handyman');
+    if (userRole === 'business') roles.push('business');
+    if ((s.jobs || []).some(j => j.handymanId === 'me' && j.status !== 'rejected') && !roles.includes('handyman')) roles.push('handyman');
+    if (s.business && !roles.includes('business')) roles.push('business');
     return roles;
   },
 
@@ -3099,9 +3104,9 @@ const HttpAdapter = {
     } catch (e) { return { ok: false, error: e.message }; }
   },
 
-  async register({ name, email, password, terms_accepted }) {
+  async register({ name, email, password, role, terms_accepted }) {
     try {
-      const { user, token } = await this._req('POST', '/api/auth/register', { name, email, password, terms_accepted });
+      const { user, token } = await this._req('POST', '/api/auth/register', { name, email, password, role, terms_accepted });
       OppiStore.set(TOKEN_KEY, token);
       HttpAdapter._user = user;
       return { ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
